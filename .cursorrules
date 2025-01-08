@@ -1,0 +1,10 @@
+- Use tabs and not spaces.
+- Never change line endings unless explicitly requested.
+- Never change the file structure you were not specifically requested.
+- Never make up features you were not specifically requested.
+- Never delete anything you were not specifically requested.
+- You may advise me to add or delete things I didn't request but not do it yourself.
+- Avoid usage of too generic names such as get and set. Be specific and write clean code.
+- First explain to yourself what you are about to do and only then do it.
+- Use pytest to write tests.
+- If you are not sure about something, ask me.
