@@ -81,10 +81,9 @@ def load_all_items(driver, wait):
 
 def download_pdf_from_list_view(driver, wait, item, download_dir, idx):
 	"""Handle items with direct PDF button in list view"""
-	button = wait.until(
-		EC.element_to_be_clickable((By.ID, "ButtonDocument"))
-	)
-	button.click()
+	# Find the button within the specific item and click it using JavaScript
+	button = item.find_element(By.ID, "ButtonDocument")
+	driver.execute_script("arguments[0].click();", button)
 	
 	# Switch to new window for PDF
 	wait.until(lambda d: len(d.window_handles) > 1)
@@ -104,19 +103,17 @@ def download_pdf_from_list_view(driver, wait, item, download_dir, idx):
 
 def download_pdf_from_lab_result(driver, wait, item, download_dir, idx):
 	"""Handle items that require clicking into lab result view"""
-	# Click the item to open the detailed view
-	detailed_view_selector = "#mainSection > div.node_modules-\\@maccabi-m-ui-src-components-Main-MainContent-module__wrap___tP2I2.src-containers-App-App__wrapInner___g2xxf > div.src-containers-App-App__inner___ONNf1 > div.TestsResults__wrap___CXnGE > div.MainBody-module__wrap___ZGWaQ.MainBody-module__layout-spread___eCdRv.MainBody-module__quickAction___zkoXs > div > div > div > div > div:nth-child(3) > div:nth-child(2) > div"
-	detailed_button = wait.until(
-		EC.element_to_be_clickable((By.CSS_SELECTOR, detailed_view_selector))
+	# Click the item to open the detailed view using JavaScript
+	detailed_button = item.find_element(By.CSS_SELECTOR, 
+		"div.MainBody-module__wrap___ZGWaQ.MainBody-module__layout-spread___eCdRv.MainBody-module__quickAction___zkoXs > div > div > div > div > div:nth-child(3) > div:nth-child(2) > div"
 	)
-	detailed_button.click()
+	driver.execute_script("arguments[0].click();", detailed_button)
 	
-	# Wait and click the save button (שמירה)
-	save_button_selector = "#mainSection > div.node_modules-\\@maccabi-m-ui-src-components-Main-MainContent-module__wrap___tP2I2.src-containers-App-App__wrapInner___g2xxf > div.src-containers-App-App__inner___ONNf1 > div:nth-child(1) > div.MainHeadline-module__wrap___LPzAO.LabResult__headerT___B1pfk.d-flex > ul > li:nth-child(1) > button"
-	save_button = wait.until(
-		EC.element_to_be_clickable((By.CSS_SELECTOR, save_button_selector))
-	)
-	save_button.click()
+	# Wait and click the save button (שמירה) using JavaScript
+	save_button = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 
+		"div.MainHeadline-module__wrap___LPzAO.LabResult__headerT___B1pfk.d-flex > ul > li:nth-child(1) > button"
+	)))
+	driver.execute_script("arguments[0].click();", save_button)
 	
 	pdf_name = f"{idx}.pdf"
 	full_path = os.path.join(download_dir, pdf_name)
@@ -124,12 +121,11 @@ def download_pdf_from_lab_result(driver, wait, item, download_dir, idx):
 	# Wait for file to download
 	wait_for_file_download(full_path)
 	
-	# Click back button (חזרה לכל הבדיקות)
-	back_button_selector = "#mainSection > div.node_modules-\\@maccabi-m-ui-src-components-Main-MainContent-module__wrap___tP2I2.src-containers-App-App__wrapInner___g2xxf > div.src-containers-App-App__inner___ONNf1 > div:nth-child(1) > div.MainHeadline-module__wrap___LPzAO.LabResult__headerT___B1pfk.d-flex > div.MainHeadline-module__scrollable___ew4Rh.LabResult__scrollable___Km379 > div.LabResult__headerTitle___qNlv9 > div > button"
-	back_button = wait.until(
-		EC.element_to_be_clickable((By.CSS_SELECTOR, back_button_selector))
-	)
-	back_button.click()
+	# Click back button (חזרה לכל הבדיקות) using JavaScript
+	back_button = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 
+		"div.LabResult__headerTitle___qNlv9 > div > button"
+	)))
+	driver.execute_script("arguments[0].click();", back_button)
 	
 	return full_path
 
@@ -144,9 +140,6 @@ def download_all_pdfs(driver, wait, items, download_dir):
 	
 	for idx, item in enumerate(items):
 		try:
-			# Scroll to the item to ensure it's in view
-			scroll_to_element(driver, item)
-			
 			# Identify item type and handle accordingly
 			item_type = identify_item_type(item)
 			if item_type == "pdf_visible_in_list_view":
