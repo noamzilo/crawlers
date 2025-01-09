@@ -107,9 +107,15 @@ def login_with_selenium(driver: webdriver.Chrome, url: str, user_id: str, passwo
 		
 		wait = WebDriverWait(driver, 20)
 		
+		# identify with password
+		field = wait.until(
+			EC.element_to_be_clickable((By.CSS_SELECTOR, 'a[href="#IdentifyWithPassword"]'))
+		)
+		field.click()
+			
 		print("Waiting for username field...")
 		username_field = wait.until(
-			EC.presence_of_element_located((By.ID, "username"))
+			EC.presence_of_element_located((By.ID, "identifyWithPasswordCitizenId"))
 		)
 		username_field.clear()  # Clear field before sending keys
 		username_field.send_keys(user_id)
@@ -122,15 +128,10 @@ def login_with_selenium(driver: webdriver.Chrome, url: str, user_id: str, passwo
 		password_field.send_keys(password)
 		
 		print("Clicking login button...")
-		login_button = wait.until(
-			EC.element_to_be_clickable((By.ID, "submitButton"))
+		button = wait.until(
+		EC.element_to_be_clickable((By.CLASS_NAME, "validatePassword"))
 		)
-		login_button.click()
-		
-		print("Waiting for successful login...")
-		wait.until(
-			EC.presence_of_element_located((By.CLASS_NAME, "user-info"))
-		)
+		button.click()
 		
 	except TimeoutException as e:
 		print(f"Timeout error: {str(e)}")
@@ -172,6 +173,15 @@ def main():
 		driver = initialize_driver()
 		login_with_selenium(driver, original_url, username, password)
 		print("Successfully authenticated to Maccabi website")
+
+		print("Waiting for successful login...")
+		
+		wait = WebDriverWait(driver, 20)
+		new_content = wait.until(
+			EC.presence_of_element_located((By.CLASS_NAME, "MainBody-module__wrap___bLPpq"))
+		)
+		print("New content loaded!")
+		return new_content
 		
 		# Wait for protected content to load (adjust timeout and selector as needed)
 		wait = WebDriverWait(driver, 20)
