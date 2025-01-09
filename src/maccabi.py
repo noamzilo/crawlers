@@ -1,124 +1,132 @@
 import os
+import sys
 import requests
 from bs4 import BeautifulSoup
-import sys
-from requests.auth import HTTPBasicAuth
 
+def login_maccabi(username: str, password: str) -> requests.Session:
+	"""
+	1) Create a requests.Session so cookies persist automatically.
+	2) Attempt to reach the final target URL (which should redirect to the SAML login).
+	3) Parse the resulting login form for hidden SAML fields (SAMLRequest, RelayState, etc.).
+	4) Submit user+pass to the actual login form endpoint (sometimes 'infosec/auth').
+	5) Let requests handle any 302 redirects, capturing new cookies or tokens.
+	6) Return the session, now hopefully authenticated for subsequent calls.
+	"""
 
-def login(url: str, user_id: str, password: str) -> requests.Session:
-	payload = {
-		"type": "password",
-		"id": f"0-{user_id}",  
-		"password": f"{password}" 
-	}
-
-	cookies = {
-		'_cls_v': 'f80f52ff-471b-4557-8b4a-f66718fd36ef',
-		'_cls_s': 'a6a9955f-75e8-4c3f-b384-65ae82beb194:0',
-		'byInitialState_wy9yZSmxjBQzxhoxpszOlg%3d%3d': '',
-		'rto': 'c0',
-		'com.silverpop.iMAWebCookie': '7bcdd635-18c6-0154-aee1-86470dc96267',
-		'usfu_wy9yZSmxjBQzxhoxpszOlg%3d%3d': 'true',
-		'com.silverpop.iMA.session': '53be918a-1a05-a7c3-c54a-218bd8698e60',
-		'com.silverpop.iMA.page_visit': '2136470536:',
-		'TS991741c8027': '0807fcf310ab20001cfa7785e1ca89e46458572d3801974314b40048802d9fad1c2ca8265a90b75308a2298aa71130009425ace6e9c72e4796597fccaaf45b4cbf886d2536c10410bfb0dbb87e169251bcb5582be6246f90201abca0f0cd9628',
-	}
-
-	headers = {
-		'Accept': 'application/json; charset=utf-8',
-		'Accept-Language': 'en-US,en;q=0.9',
-		'Authorization': 'Bearer eyJhbGciOiJSUzI1NiJ9.eyJpc3MiOiJNYWNjYWJpIiwiYXVkIjoiTWFjY2FiaSIsImlhdCI6MTczNjM4MDYxNDE5NSwiZXhwIjoxNzM2MzgxMjE0MTk1LCJvcmlnIjoiaHR0cHM6Ly9vbmxpbmUubWFjY2FiaTR1LmNvLmlsIiwiUmVsYXlTdGF0ZSI6IiIsImFjcyI6Imh0dHBzOi8vb25saW5lLm1hY2NhYmk0dS5jby5pbC9zYW1sL3NwL3Byb2ZpbGUvcG9zdC9hY3MifQ.BUlnW4Xg1a678_512epiL2IUHgdT9k3hhHwGMzG6ByCjrsX-Enggkp8caUm4pg8seu1hDjgpEqgOH7NmXxaczROpdrLmSzPz6tuWABOpTvAIQOZ2Qx0KSFX_6b7ZJIBPQWSWooSvQVLBG-kv3_5KHjHMtymeidnx6b1yTohjXNyB6lzX2R5ivU2ql5jJ0VwS3OZUJ2WXmedfdvQTqyq5kzX6S2Bw3kbMKNF-AF-ASbXZeX-MNA9y8FBdttzOAEkp2VXGZq5PtY0fSwJXaixzlLFDIJ7coPM-ByNtvmu7Nb9JrrZQD-x_gGjkp_WeUfzjs03XneAKqIqVhh0y8QggrQ',
-		'Cache-Control': 'no-cache',
-		'Connection': 'keep-alive',
-		'Content-Type': 'application/json; charset=UTF-8',
-		# 'Cookie': '_cls_v=f80f52ff-471b-4557-8b4a-f66718fd36ef; _cls_s=a6a9955f-75e8-4c3f-b384-65ae82beb194:0; byInitialState_wy9yZSmxjBQzxhoxpszOlg%3d%3d=; rto=c0; com.silverpop.iMAWebCookie=7bcdd635-18c6-0154-aee1-86470dc96267; usfu_wy9yZSmxjBQzxhoxpszOlg%3d%3d=true; com.silverpop.iMA.session=53be918a-1a05-a7c3-c54a-218bd8698e60; com.silverpop.iMA.page_visit=2136470536:; TS991741c8027=0807fcf310ab20001cfa7785e1ca89e46458572d3801974314b40048802d9fad1c2ca8265a90b75308a2298aa71130009425ace6e9c72e4796597fccaaf45b4cbf886d2536c10410bfb0dbb87e169251bcb5582be6246f90201abca0f0cd9628',
-		'Origin': 'https://mac.maccabi4u.co.il',
-		'Pragma': 'no-cache',
-		'Referer': 'https://mac.maccabi4u.co.il/login?SAMLRequest=fZLbTsMwDIZfpcr9mrRlY43WSmUTYhKHaitccIOy1NsipUmJUw5vT9eBGELatX9%2Ftj95hqLRLS86vzcreO0AffDRaIN8KGSkc4ZbgQq5EQ0g95Kvi7tbHoeMt856K60mQYEIzitr5tZg14Bbg3tTEh5XtxnZe98ip9QarQyEjZBSbNRFF0obKk0Pgyi2tKdtlQbaWvRUSCTBot9GGXHg%2FlL69n8IbXfKkGC5yMhLGkUwTlhU1%2BM0nkh5KSZiGiViComU8TZN67pOkz6M2MHSoBfGZyRm8XjEohGbVnHCWcIjFjIWP5Pg2joJg5%2BMbIVGIEH5ffeVMrUyu%2FOSNscQ8puqKkflw7oiwRM4HI7qAySfHQzwYR93Iv88VvwYJ%2Fl5vzN6gj%2FOavl9z1suSquV%2FAwKre373IHwkBHvOiA0P3b9fYz8Cw%3D%3D&SigAlg=http%3A%2F%2Fwww%2Ew3%2Eorg%2F2000%2F09%2Fxmldsig%23rsa%2Dsha1&Signature=Zjgh5qn8K%2ByJzKxyv82rv0souU4h9%2B9IzxFddD2CL1RbXv8%2BWk2WvGpL7bgt5C33t1ygyMQB3PZfh5hQOtO5RswEgdO9UoIaxOWt9oWIUkkZt7eTeHe9ePr7TnuROLbN4WS9tvZ4rwxwVOTZFjfRKW8K8Bqw0%2BNXsASIW6Ieh%2BnLlNYkCxXZiBIRvZ1iPyXcEK9uCy12%2FK1mZfm5s0EnUU80AptvcYqQP5q2nHQOdE0ZHy9%2FNQHHOUSxHuCv9kK%2BwbNmb0LXeuNzVJW1EMfwKjsJHm2zeYDKN%2B4jfcqFy8yplyO2Hj5pkcL3hFQ11M%2Fr7XDBvoSHr4c7ZQ1JTe%2B2ww%3D%3D',
-		'Sec-Fetch-Dest': 'empty',
-		'Sec-Fetch-Mode': 'cors',
-		'Sec-Fetch-Site': 'same-origin',
-		'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-		'X-Requested-With': 'XMLHttpRequest',
-		'sec-ch-ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
-		'sec-ch-ua-mobile': '?0',
-		'sec-ch-ua-platform': '"Windows"',
-	}
-
+	# STEP 1: Start a session
 	session = requests.Session()
-	response = session.post(url, json=payload, headers=headers, cookies=cookies)
-	# Check response content for authentication success/failure
-	if response.status_code != 200:
-		raise ConnectionError(f"Login failed with status code: {response.status_code}")
-	
+	session.max_redirects = 10
+
+	# The final page you want:
+	target_url = "https://online.maccabi4u.co.il/sonline/homepage/NotificationAndUpdates/"
+
+	# STEP 2: Hit the target page (which typically redirects you to the SAML login).
+	resp1 = session.get(target_url, allow_redirects=True)
+
+	# If the server hasn’t redirected yet, or the form is already present:
+	soup = BeautifulSoup(resp1.text, 'html.parser')
+	saml_request_input = soup.find('input', {'name': 'SAMLRequest'})
+
+	if not saml_request_input:
+		print("[DEBUG] Could not find 'SAMLRequest' in the HTML. Maybe they changed flow or you’re on a different path.")
+		# We’ll still proceed if there's no SAML form. Possibly the site already gave you a login form.
+		pass
+
+	# STEP 3: We often find a <form> with SAMLRequest, RelayState, etc.
+	# Example:
+	#   <form action="https://mac.maccabi4u.co.il/login" method="POST">
+	#       <input type="hidden" name="SAMLRequest" value="fZBb..."/>
+	#       <input type="hidden" name="RelayState" value="..."/>
+	#   </form>
+	form_tag = soup.find('form')
+	if not form_tag:
+		print("[DEBUG] No <form> found. Possibly the request already included a redirect. Continue carefully.")
+		# In real usage, handle that scenario gracefully.
+
+	form_action = form_tag.get('action') if form_tag else None
+	if not form_action:
+		print("[DEBUG] No form action found. We'll guess the final login endpoint below.")
+		# If you already know the endpoint is 'https://mac.maccabi4u.co.il/infosec/auth', proceed with that
+
+	# Construct the form data. We always have user & pass (like you had in `payload`).
+	# We might also include any hidden fields (SAMLRequest, RelayState) if found.
+	form_data = {
+		"type": "password",
+		"id": f"0-{username}",  
+		"password": password
+	}
+
+	# If you find hidden fields, add them:
+	if saml_request_input:
+		form_data["SAMLRequest"] = saml_request_input.get('value')
+	relay_input = soup.find('input', {'name': 'RelayState'})
+	if relay_input:
+		form_data["RelayState"] = relay_input.get('value')
+
+	# STEP 4: Submit the credentials to the correct URL.
+	# Sometimes the form action is something like https://mac.maccabi4u.co.il/infosec/auth
+	# If form_action is None, fallback to your known login endpoint:
+	login_url = form_action if form_action else "https://mac.maccabi4u.co.il/infosec/auth"
+
+	login_response = session.post(login_url, data=form_data, allow_redirects=True)
+	if login_response.status_code != 200:
+		raise ConnectionError(f"Login step failed with status {login_response.status_code}")
+
+	# Possibly the server returns JSON with a new JWT. Possibly not.
+	# If you DO get a JSON with 'jwt', store it in the session headers:
 	try:
-		response_data = response.json()		
-		jwt_token = response_data['jwt']
-		session.headers.update({
-			'Authorization': f'Bearer {jwt_token}'
-		})
+		js = login_response.json()
+		jwt_token = js.get("jwt")
+		if jwt_token:
+			session.headers.update({'Authorization': f'Bearer {jwt_token}'})
+	except:
+		pass  # Not all flows return JSON here.
 
-		# Add specific checks based on the actual response structure
-		if "error" in response_data:
-			raise ConnectionError(f"Login failed: {response_data['error']}")
-	except ValueError:
-		raise ConnectionError("Failed to parse login response")
+	# After this, session might get auto-redirected to more pages (SAML handshake, etc.).
+	# We'll do another quick request to confirm all cookies are properly set.
+	test_auth = session.get(target_url)
+	if test_auth.status_code == 200:
+		print("[DEBUG] Possibly logged in, got 200 from target_url.")
+	else:
+		print(f"[DEBUG] Possibly not logged in. Status was {test_auth.status_code}")
 
+	# Return the session, now presumably authenticated
 	return session
 
-def verify_authentication(session: requests.Session, test_url: str) -> bool:
-	"""Verify that the session is authenticated by making a test request."""
-	try:
-		response = session.get(test_url)
-		print(response.json())
-		return response.status_code == 200
-	except requests.RequestException as e:
-		raise ConnectionError(f"Failed to verify authentication: {str(e)}")
 
-def read_env_file(file_path: str) -> dict:
-	env_vars = {}
-	assert os.path.isfile(file_path), "secrets file not found"
-	with open(file_path, "r") as f:
+def main():
+	# Read credentials
+	secrets_path = "src/.secrets"
+	if not os.path.isfile(secrets_path):
+		print("Error: secrets file missing")
+		sys.exit(1)
+
+	secrets = {}
+	with open(secrets_path, "r") as f:
 		for line in f:
 			if line.startswith("#") or not line.strip():
 				continue
-			key, value = line.strip().split("=")
-			env_vars[key] = value
-	return env_vars
+			key, val = line.strip().split("=")
+			secrets[key] = val
 
-def main():
-	original_url = "https://online.maccabi4u.co.il/dana/home/starter.cgi?startpageonly=1"
-	secrets = read_env_file("src/.secrets")
-	try:
-		username = secrets["id"]
-		password = secrets["password"]
-	except KeyError:
-		print("Error: Missing required credentials in .env file")
+	username = secrets.get("id")
+	password = secrets.get("password")
+	if not username or not password:
+		print("Error: Missing ID/password in .secrets")
 		sys.exit(1)
 
-	try:
-		login_url = "https://mac.maccabi4u.co.il/infosec/auth"
-		session = login(login_url, username, password)
-		
-		# Test URL for authentication verification
-		test_url = 'https://online.maccabi4u.co.il/sonline/homepage/NotificationAndUpdates/'
-		if not verify_authentication(session, test_url):
-			raise ConnectionError("Failed to verify authentication")
-		
-		print("Successfully authenticated to Maccabi website")
-		
-		# Now access protected resources
-		response = session.get(test_url)  # Remove the trailing comma
-		if response.status_code != 200:
-			raise ConnectionError(f"Failed to access protected resource: {response.status_code}")
-			
-		soup = BeautifulSoup(response.text, 'html.parser')
-		with open("output1.html", "w") as f:
-			f.write(str(soup))
-			
-	except ConnectionError as e:
-		print(f"Error: {str(e)}")
-		sys.exit(1)
+	# Use the new login approach
+	session = login_maccabi(username, password)
+
+	# Now test the final protected page
+	test_url = "https://online.maccabi4u.co.il/sonline/homepage/NotificationAndUpdates/"
+	resp = session.get(test_url)
+	if resp.status_code == 200:
+		print("Successfully authenticated!")
+		with open("output1.html", "w", encoding="utf-8") as f:
+			f.write(resp.text)
+	else:
+		print(f"Failed to authenticate. Status: {resp.status_code}")
 
 if __name__ == "__main__":
 	main()
