@@ -79,6 +79,65 @@ def load_all_items(driver, wait):
 		scroll_to_element(driver, items[-1])
 		time.sleep(1)  # Wait for potential new items to load
 
+def download_pdf_from_list_view(driver, wait, item, download_dir, idx):
+	"""Handle items with direct PDF button in list view"""
+	button = wait.until(
+		EC.element_to_be_clickable((By.ID, "ButtonDocument"))
+	)
+	button.click()
+	
+	# Switch to new window for PDF
+	wait.until(lambda d: len(d.window_handles) > 1)
+	driver.switch_to.window(driver.window_handles[-1])
+	
+	pdf_name = f"{idx}.pdf"
+	full_path = os.path.join(download_dir, pdf_name)
+	
+	# Wait for file to download
+	wait_for_file_download(full_path)
+	
+	# Close PDF tab/window and switch back
+	driver.close()
+	driver.switch_to.window(driver.window_handles[0])
+	
+	return full_path
+
+def download_pdf_from_lab_result(driver, wait, item, download_dir, idx):
+	"""Handle items that require clicking into lab result view"""
+	# Click the item to open the detailed view
+	detailed_view_selector = "#mainSection > div.node_modules-\\@maccabi-m-ui-src-components-Main-MainContent-module__wrap___tP2I2.src-containers-App-App__wrapInner___g2xxf > div.src-containers-App-App__inner___ONNf1 > div.TestsResults__wrap___CXnGE > div.MainBody-module__wrap___ZGWaQ.MainBody-module__layout-spread___eCdRv.MainBody-module__quickAction___zkoXs > div > div > div > div > div:nth-child(3) > div:nth-child(2) > div"
+	detailed_button = wait.until(
+		EC.element_to_be_clickable((By.CSS_SELECTOR, detailed_view_selector))
+	)
+	detailed_button.click()
+	
+	# Wait and click the save button (שמירה)
+	save_button_selector = "#mainSection > div.node_modules-\\@maccabi-m-ui-src-components-Main-MainContent-module__wrap___tP2I2.src-containers-App-App__wrapInner___g2xxf > div.src-containers-App-App__inner___ONNf1 > div:nth-child(1) > div.MainHeadline-module__wrap___LPzAO.LabResult__headerT___B1pfk.d-flex > ul > li:nth-child(1) > button"
+	save_button = wait.until(
+		EC.element_to_be_clickable((By.CSS_SELECTOR, save_button_selector))
+	)
+	save_button.click()
+	
+	pdf_name = f"{idx}.pdf"
+	full_path = os.path.join(download_dir, pdf_name)
+	
+	# Wait for file to download
+	wait_for_file_download(full_path)
+	
+	# Click back button (חזרה לכל הבדיקות)
+	back_button_selector = "#mainSection > div.node_modules-\\@maccabi-m-ui-src-components-Main-MainContent-module__wrap___tP2I2.src-containers-App-App__wrapInner___g2xxf > div.src-containers-App-App__inner___ONNf1 > div:nth-child(1) > div.MainHeadline-module__wrap___LPzAO.LabResult__headerT___B1pfk.d-flex > div.MainHeadline-module__scrollable___ew4Rh.LabResult__scrollable___Km379 > div.LabResult__headerTitle___qNlv9 > div > button"
+	back_button = wait.until(
+		EC.element_to_be_clickable((By.CSS_SELECTOR, back_button_selector))
+	)
+	back_button.click()
+	
+	return full_path
+
+def identify_item_type(item):
+	"""Identify if the item has a direct PDF button or is a clickable lab result"""
+	button_document = item.find_elements(By.ID, "ButtonDocument")
+	return "pdf_visible_in_list_view" if button_document else "lab_result_clickable"
+
 def download_all_pdfs(driver, wait, items, download_dir):
 	"""Download PDFs for all items in the list"""
 	downloaded = []
@@ -88,33 +147,19 @@ def download_all_pdfs(driver, wait, items, download_dir):
 			# Scroll to the item to ensure it's in view
 			scroll_to_element(driver, item)
 			
-			# Wait for button to be clickable
-			button = wait.until(
-				EC.element_to_be_clickable((By.ID, "ButtonDocument"))
-			)
-			button.click()
-			
-			# Switch to new window for PDF
-			wait.until(lambda d: len(d.window_handles) > 1)
-			driver.switch_to.window(driver.window_handles[-1])
-			
-			# Prepare file paths
-			pdf_name = f"{idx}.pdf"
-			full_path = os.path.join(download_dir, pdf_name)
-			
-			# Wait for file to download
-			wait_for_file_download(full_path)
+			# Identify item type and handle accordingly
+			item_type = identify_item_type(item)
+			if item_type == "pdf_visible_in_list_view":
+				full_path = download_pdf_from_list_view(driver, wait, item, download_dir, idx)
+			else:  # lab_result_clickable
+				full_path = download_pdf_from_lab_result(driver, wait, item, download_dir, idx)
 			
 			downloaded.append({
-				"name_of_item": pdf_name,
+				"name_of_item": os.path.basename(full_path),
 				"full_path_to_item": full_path
 			})
-
-			# Close PDF tab/window and switch back
-			driver.close()
-			driver.switch_to.window(driver.window_handles[0])
 			
-			# Get the newest file and rename it
+			# Get the newest file and rename it if needed
 			newest_file_path = get_newest_file(download_dir, extension="pdf")
 			if newest_file_path != full_path:
 				os.rename(newest_file_path, full_path)
