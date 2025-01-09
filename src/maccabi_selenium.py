@@ -158,7 +158,8 @@ def read_env_file(file_path: str) -> dict:
 	return env_vars
 
 def main():
-	original_url = "https://online.maccabi4u.co.il/dana/home/starter.cgi?startpageonly=1"
+	original_url = "https://online.maccabi4u.co.il/sonline/homepage/NotificationAndUpdates/"
+	# original_url = "https://online.maccabi4u.co.il/dana/home/starter.cgi?startpageonly=1"
 	secrets = read_env_file("src/.secrets")
 	
 	try:
@@ -178,7 +179,7 @@ def main():
 		
 		wait = WebDriverWait(driver, 20)
 		new_content = wait.until(
-			EC.presence_of_element_located((By.CLASS_NAME, "MainBody-module__wrap___bLPpq"))
+			EC.presence_of_element_located((By.CLASS_NAME, "src-components-Header-Header__logo___NSUR"))
 		)
 		print("New content loaded!")
 		return new_content
