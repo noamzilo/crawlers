@@ -42,16 +42,19 @@ def get_newest_file(directory, extension="*"):
         raise FileNotFoundError(f"No files found in directory: {directory}")
     return max(files, key=os.path.getctime)
 
-def wait_for_file_download(file_path, timeout=30):
-	"""Wait for file to be downloaded and accessible"""
+def count_files_in_dir(directory, extension="pdf"):
+	"""Count number of files with given extension in directory"""
+	return len([f for f in os.listdir(directory) if f.endswith(f".{extension}")])
+
+def wait_for_new_file(directory, initial_count, timeout=30, extension="pdf"):
+	"""Wait for a new file to appear in the directory"""
 	start_time = time.time()
 	while time.time() - start_time < timeout:
-		if os.path.exists(file_path):
-			# Check if file is fully downloaded (no .crdownload or .tmp extension)
-			if not any(file_path.endswith(ext) for ext in ['.crdownload', '.tmp']):
-				# Give a small delay to ensure file is fully written
-				time.sleep(0.5)
-				return True
+		current_count = count_files_in_dir(directory, extension)
+		if current_count > initial_count:
+			# Give a small delay to ensure file is fully written
+			time.sleep(0.5)
+			return True
 		time.sleep(0.5)
 	raise TimeoutError(f"File download timed out after {timeout} seconds")
 
@@ -81,6 +84,9 @@ def load_all_items(driver, wait):
 
 def download_pdf_from_list_view(driver, wait, item, download_dir, idx):
 	"""Handle items with direct PDF button in list view"""
+	# Count files before download
+	initial_count = count_files_in_dir(download_dir)
+	
 	# Find the button within the specific item and click it using JavaScript
 	button = item.find_element(By.ID, "ButtonDocument")
 	driver.execute_script("arguments[0].click();", button)
@@ -92,8 +98,8 @@ def download_pdf_from_list_view(driver, wait, item, download_dir, idx):
 	pdf_name = f"{idx}.pdf"
 	full_path = os.path.join(download_dir, pdf_name)
 	
-	# Wait for file to download
-	wait_for_file_download(full_path)
+	# Wait for new file to appear
+	wait_for_new_file(download_dir, initial_count)
 	
 	# Close PDF tab/window and switch back
 	driver.close()
@@ -103,6 +109,9 @@ def download_pdf_from_list_view(driver, wait, item, download_dir, idx):
 
 def download_pdf_from_lab_result(driver, wait, item, download_dir, idx):
 	"""Handle items that require clicking into lab result view"""
+	# Count files before download
+	initial_count = count_files_in_dir(download_dir)
+	
 	# Click the item to open the detailed view using JavaScript
 	detailed_button = item.find_element(By.CSS_SELECTOR, 
 		"div.MainBody-module__wrap___ZGWaQ.MainBody-module__layout-spread___eCdRv.MainBody-module__quickAction___zkoXs > div > div > div > div > div:nth-child(3) > div:nth-child(2) > div"
@@ -118,8 +127,8 @@ def download_pdf_from_lab_result(driver, wait, item, download_dir, idx):
 	pdf_name = f"{idx}.pdf"
 	full_path = os.path.join(download_dir, pdf_name)
 	
-	# Wait for file to download
-	wait_for_file_download(full_path)
+	# Wait for new file to appear
+	wait_for_new_file(download_dir, initial_count)
 	
 	# Click back button (חזרה לכל הבדיקות) using JavaScript
 	back_button = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 
@@ -142,10 +151,18 @@ def download_all_pdfs(driver, wait, items, download_dir):
 		try:
 			# Identify item type and handle accordingly
 			item_type = identify_item_type(item)
-			if item_type == "pdf_visible_in_list_view":
-				full_path = download_pdf_from_list_view(driver, wait, item, download_dir, idx)
-			else:  # lab_result_clickable
-				full_path = download_pdf_from_lab_result(driver, wait, item, download_dir, idx)
+			try:
+				if item_type == "pdf_visible_in_list_view":
+					full_path = download_pdf_from_list_view(driver, wait, item, download_dir, idx)
+				else:  # lab_result_clickable
+					full_path = download_pdf_from_lab_result(driver, wait, item, download_dir, idx)
+			except TimeoutError as ex:
+				print(f"Failed on item #{idx} due to timeout: {ex}")
+				downloaded.append({
+					"name_of_item": f"{idx}.pdf",
+					"full_path_to_item": None,
+				})	
+				continue
 			
 			downloaded.append({
 				"name_of_item": os.path.basename(full_path),
@@ -157,7 +174,7 @@ def download_all_pdfs(driver, wait, items, download_dir):
 			if newest_file_path != full_path:
 				os.rename(newest_file_path, full_path)
 				# Wait for rename to complete
-				wait_for_file_download(full_path)
+				wait_for_new_file(download_dir, count_files_in_dir(download_dir, "pdf"))
 			
 		except Exception as e:
 			print(f"Failed on item #{idx}: {e}")
