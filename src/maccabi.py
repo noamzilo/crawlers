@@ -49,9 +49,9 @@ def count_files_in_dir(directory, extension="pdf"):
 def wait_for_new_file(directory, initial_count, timeout=30, extension="pdf"):
 	"""Wait for a new file to appear in the directory and return its path"""
 	start_time = time.time()
+	initial_files = set(f for f in os.listdir(directory) if f.endswith(f".{extension}"))
 	while time.time() - start_time < timeout:
 		current_files = set(f for f in os.listdir(directory) if f.endswith(f".{extension}"))
-		initial_files = set(f for f in os.listdir(directory) if f.endswith(f".{extension}"))
 		new_files = current_files - initial_files
 		
 		if new_files:
@@ -88,7 +88,7 @@ def load_all_items(driver, wait):
 def download_pdf_from_list_view(driver, wait, item, download_dir, download_name):
 	"""Handle items with direct PDF button in list view"""
 	# Get initial files
-	initial_files = set(f for f in os.listdir(download_dir) if f.endswith(".pdf"))
+	initial_file_names = set(n for n in os.listdir(download_dir) if n.endswith(".pdf"))
 	
 	# Find the button within the specific item and click it using JavaScript
 	button = item.find_element(By.ID, "ButtonDocument")
@@ -99,7 +99,7 @@ def download_pdf_from_list_view(driver, wait, item, download_dir, download_name)
 	driver.switch_to.window(driver.window_handles[-1])
 	
 	# Wait for new file to appear and get its path
-	downloaded_file = wait_for_new_file(download_dir, len(initial_files))
+	downloaded_file = wait_for_new_file(download_dir, len(initial_file_names))
 	target_path = os.path.join(download_dir, download_name)
 	
 	# Rename the file
