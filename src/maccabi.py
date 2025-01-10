@@ -46,18 +46,17 @@ def count_files_in_dir(directory, extension="pdf"):
 	"""Count number of files with given extension in directory"""
 	return len([f for f in os.listdir(directory) if f.endswith(f".{extension}")])
 
-def wait_for_new_file(directory, initial_count, timeout=30, extension="pdf"):
-	"""Wait for a new file to appear in the directory and return its path"""
+def monitor_new_file(dir_path, initial_files, timeout=30, extension="pdf"):
+	"""Monitor directory for a new file after download is triggered"""
 	start_time = time.time()
-	initial_files = set(f for f in os.listdir(directory) if f.endswith(f".{extension}"))
 	while time.time() - start_time < timeout:
-		current_files = set(f for f in os.listdir(directory) if f.endswith(f".{extension}"))
+		current_files = set(f for f in os.listdir(dir_path) if f.endswith(f".{extension}"))
 		new_files = current_files - initial_files
 		
 		if new_files:
 			# Give a small delay to ensure file is fully written
 			time.sleep(0.5)
-			return os.path.join(directory, new_files.pop())
+			return os.path.join(dir_path, new_files.pop())
 		time.sleep(0.5)
 	raise TimeoutError(f"File download timed out after {timeout} seconds")
 
@@ -87,8 +86,8 @@ def load_all_items(driver, wait):
 
 def download_pdf_from_list_view(driver, wait, item, download_dir, download_name):
 	"""Handle items with direct PDF button in list view"""
-	# Get initial files
-	initial_file_names = set(n for n in os.listdir(download_dir) if n.endswith(".pdf"))
+	# Get initial files before triggering download
+	initial_files = set(f for f in os.listdir(download_dir) if f.endswith(".pdf"))
 	
 	# Find the button within the specific item and click it using JavaScript
 	button = item.find_element(By.ID, "ButtonDocument")
@@ -98,8 +97,8 @@ def download_pdf_from_list_view(driver, wait, item, download_dir, download_name)
 	wait.until(lambda d: len(d.window_handles) > 1)
 	driver.switch_to.window(driver.window_handles[-1])
 	
-	# Wait for new file to appear and get its path
-	downloaded_file = wait_for_new_file(download_dir, len(initial_file_names))
+	# Monitor for new file
+	downloaded_file = monitor_new_file(download_dir, initial_files)
 	target_path = os.path.join(download_dir, download_name)
 	
 	# Rename the file
@@ -113,7 +112,7 @@ def download_pdf_from_list_view(driver, wait, item, download_dir, download_name)
 
 def download_pdf_from_lab_result(driver, wait, item, download_dir, download_name):
 	"""Handle items that require clicking into lab result view"""
-	# Get initial files
+	# Get initial files before triggering download
 	initial_files = set(f for f in os.listdir(download_dir) if f.endswith(".pdf"))
 	
 	# Click the item to open the detailed view using JavaScript
@@ -128,8 +127,8 @@ def download_pdf_from_lab_result(driver, wait, item, download_dir, download_name
 	)))
 	driver.execute_script("arguments[0].click();", save_button)
 	
-	# Wait for new file to appear and get its path
-	downloaded_file = wait_for_new_file(download_dir, len(initial_files))
+	# Monitor for new file
+	downloaded_file = monitor_new_file(download_dir, initial_files)
 	target_path = os.path.join(download_dir, download_name)
 	
 	# Rename the file
