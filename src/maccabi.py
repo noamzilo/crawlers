@@ -116,12 +116,17 @@ def download_pdf_from_lab_result(driver, wait, item, download_dir, download_name
 	initial_files = set(f for f in os.listdir(download_dir) if f.endswith(".pdf"))
 	
 	# Click the item to open the detailed view using JavaScript
+	wait.until(EC.element_to_be_clickable(item))
+	sleep(3) # this is a workaround for the fact that the item is not clickable immediately
+	# When debugging, it works without the sleep, but it's not reliable
 	driver.execute_script("arguments[0].click();", item)
 	
 	# Wait and click the save button (שמירה) using JavaScript
+	sleep(3)
 	save_button = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 
 		"div.MainHeadline-module__wrap___LPzAO.LabResult__headerT___B1pfk.d-flex > ul > li:nth-child(1) > button"
 	)))
+	sleep(3)
 	driver.execute_script("arguments[0].click();", save_button)
 	
 	# Monitor for new file
@@ -209,9 +214,32 @@ def main():
 	prefs = {
 		"download.default_directory": download_dir,
 		"download.prompt_for_download": False,
-		"plugins.always_open_pdf_externally": True
+		"plugins.always_open_pdf_externally": True,
+		"download.directory_upgrade": True,
+		"safebrowsing.enabled": True,
+		# Disable save password prompt
+		"credentials_enable_service": False,
+		"profile.password_manager_enabled": False
 	}
+	
+	# Add MIME types for auto-download
+	prefs["profile.default_content_settings.popups"] = 0
+	prefs["profile.content_settings.exceptions.automatic_downloads.*.setting"] = 1
+	prefs["download.prompt_for_download"] = False
+	
+	# Set allowed MIME types
+	prefs["profile.content_settings.exceptions.plugins.*,*.setting"] = 1
+	prefs["plugins.plugins_list"] = [{
+		"enabled": False,
+		"name": "Chrome PDF Viewer"
+	}]
+	
 	options.add_experimental_option("prefs", prefs)
+	
+	# Additional Chrome arguments for better download handling
+	options.add_argument("--disable-popup-blocking")
+	options.add_argument("--safebrowsing-disable-download-protection")
+	
 	driver = webdriver.Chrome(options=options)
 
 	wait = WebDriverWait(driver, 30)
