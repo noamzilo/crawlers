@@ -116,10 +116,7 @@ def download_pdf_from_lab_result(driver, wait, item, download_dir, download_name
 	initial_files = set(f for f in os.listdir(download_dir) if f.endswith(".pdf"))
 	
 	# Click the item to open the detailed view using JavaScript
-	detailed_button = item.find_element(By.CSS_SELECTOR, 
-		"div.MainBody-module__wrap___ZGWaQ.MainBody-module__layout-spread___eCdRv.MainBody-module__quickAction___zkoXs > div > div > div > div > div:nth-child(3) > div:nth-child(2) > div"
-	)
-	driver.execute_script("arguments[0].click();", detailed_button)
+	item.click()
 	
 	# Wait and click the save button (שמירה) using JavaScript
 	save_button = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 
