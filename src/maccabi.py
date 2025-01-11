@@ -118,15 +118,17 @@ def download_pdf_from_lab_result(driver, wait, item, download_dir, download_name
 	# Click the item to open the detailed view using JavaScript
 	wait.until(EC.element_to_be_clickable(item))
 	wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, "#mainSection > div.node_modules-\\@maccabi-m-ui-src-components-Main-MainContent-module__wrap___tP2I2.src-containers-App-App__wrapInner___g2xxf > div.src-containers-App-App__inner___ONNf1 > div.src-components-Loader-Loader__loaderWrapper___dp2wV > div")))
+	time.sleep(3)
 	driver.execute_script("arguments[0].click();", item)
 	
 	# Wait and click the save button (שמירה) using JavaScript
 	wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, "#mainSection > div.node_modules-\\@maccabi-m-ui-src-components-Main-MainContent-module__wrap___tP2I2.src-containers-App-App__wrapInner___g2xxf > div.src-containers-App-App__inner___ONNf1 > div.src-components-Loader-Loader__loaderWrapper___dp2wV > div")))
+	time.sleep(3)
 	save_button = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 
 		"div.MainHeadline-module__wrap___LPzAO.LabResult__headerT___B1pfk.d-flex > ul > li:nth-child(1) > button"
 	)))
 	driver.execute_script("arguments[0].click();", save_button)
-	
+	time.sleep(3)
 	# Monitor for new file
 	downloaded_file = monitor_new_file(download_dir, initial_files)
 	target_path = os.path.join(download_dir, download_name)
@@ -151,7 +153,7 @@ def download_single_pdf(driver, wait, item, download_dir, idx):
 	"""Handle downloading a single PDF item"""
 	download_name = f"{idx}.pdf"
 	item_type = identify_item_type(item)
-	
+	time.sleep(3)
 	if item_type == "pdf_visible_in_list_view":
 		full_path = download_pdf_from_list_view(driver, wait, item, download_dir, download_name)
 	else:  # lab_result_clickable
@@ -166,12 +168,14 @@ def download_all_pdfs(driver, wait, download_dir):
 	
 	while True:
 		try:
+			print(f"Downloading item #{current_idx}")
 			# Wait for loading to complete
 			wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, "#mainSection > div.node_modules-\\@maccabi-m-ui-src-components-Main-MainContent-module__wrap___tP2I2.src-containers-App-App__wrapInner___g2xxf > div.src-containers-App-App__inner___ONNf1 > div.src-components-Loader-Loader__loaderWrapper___dp2wV > div")))
 			# Get fresh list of items
+			time.sleep(3)
 			items = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR,
 				'div.TimeLineItem-module__item___D5ZMV')))
-			
+			time.sleep(3)
 			# Check if we've processed all items
 			if current_idx >= len(items):
 				break
@@ -214,32 +218,9 @@ def main():
 	prefs = {
 		"download.default_directory": download_dir,
 		"download.prompt_for_download": False,
-		"plugins.always_open_pdf_externally": True,
-		"download.directory_upgrade": True,
-		"safebrowsing.enabled": True,
-		# Disable save password prompt
-		"credentials_enable_service": False,
-		"profile.password_manager_enabled": False
+		"plugins.always_open_pdf_externally": True
 	}
-	
-	# Add MIME types for auto-download
-	prefs["profile.default_content_settings.popups"] = 0
-	prefs["profile.content_settings.exceptions.automatic_downloads.*.setting"] = 1
-	prefs["download.prompt_for_download"] = False
-	
-	# Set allowed MIME types
-	prefs["profile.content_settings.exceptions.plugins.*,*.setting"] = 1
-	prefs["plugins.plugins_list"] = [{
-		"enabled": False,
-		"name": "Chrome PDF Viewer"
-	}]
-	
 	options.add_experimental_option("prefs", prefs)
-	
-	# Additional Chrome arguments for better download handling
-	options.add_argument("--disable-popup-blocking")
-	options.add_argument("--safebrowsing-disable-download-protection")
-	
 	driver = webdriver.Chrome(options=options)
 
 	wait = WebDriverWait(driver, 30)
@@ -284,6 +265,7 @@ def main():
 		# print(f"Found {len(all_items)} items")
 
 		# PHASE 4: Download All PDFs
+		time.sleep(5)
 		print("Starting downloads...")
 		downloaded = download_all_pdfs(driver, wait, download_dir)
 		print(f"Successfully downloaded {len(downloaded)} files")
