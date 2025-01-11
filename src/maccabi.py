@@ -117,16 +117,14 @@ def download_pdf_from_lab_result(driver, wait, item, download_dir, download_name
 	
 	# Click the item to open the detailed view using JavaScript
 	wait.until(EC.element_to_be_clickable(item))
-	sleep(3) # this is a workaround for the fact that the item is not clickable immediately
-	# When debugging, it works without the sleep, but it's not reliable
+	wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, "#mainSection > div.node_modules-\\@maccabi-m-ui-src-components-Main-MainContent-module__wrap___tP2I2.src-containers-App-App__wrapInner___g2xxf > div.src-containers-App-App__inner___ONNf1 > div.src-components-Loader-Loader__loaderWrapper___dp2wV > div")))
 	driver.execute_script("arguments[0].click();", item)
 	
 	# Wait and click the save button (שמירה) using JavaScript
-	sleep(3)
+	wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, "#mainSection > div.node_modules-\\@maccabi-m-ui-src-components-Main-MainContent-module__wrap___tP2I2.src-containers-App-App__wrapInner___g2xxf > div.src-containers-App-App__inner___ONNf1 > div.src-components-Loader-Loader__loaderWrapper___dp2wV > div")))
 	save_button = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 
 		"div.MainHeadline-module__wrap___LPzAO.LabResult__headerT___B1pfk.d-flex > ul > li:nth-child(1) > button"
 	)))
-	sleep(3)
 	driver.execute_script("arguments[0].click();", save_button)
 	
 	# Monitor for new file
