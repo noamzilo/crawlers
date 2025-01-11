@@ -66,7 +66,7 @@ def scroll_to_element(driver, element):
 	# Add small delay after scroll
 	time.sleep(0.5)
 
-def load_all_items(driver, wait):
+def load_all_items(driver, wait, fast=False):
 	"""Scroll until all items are loaded and return the complete list"""
 	last_item_count = 0
 	
@@ -76,7 +76,7 @@ def load_all_items(driver, wait):
 			'div.TimeLineItem-module__item___D5ZMV')))
 		
 		# If no new items were loaded after scrolling, we're done
-		if len(items) == last_item_count:
+		if fast or len(items) == last_item_count:
 			return items
 		
 		# Update count and scroll to last item
@@ -237,8 +237,10 @@ def main():
 		link_to_click.click()
 
 		# PHASE 3: Load All Available Items
+		is_speedup = True
+	
 		print("Loading all items...")
-		all_items = load_all_items(driver, wait)
+		all_items = load_all_items(driver, wait, fast=is_speedup)
 		print(f"Found {len(all_items)} items")
 
 		# PHASE 4: Download All PDFs
