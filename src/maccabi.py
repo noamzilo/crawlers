@@ -166,6 +166,8 @@ def download_all_pdfs(driver, wait, download_dir):
 	
 	while True:
 		try:
+			# Wait for loading to complete
+			wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, "#mainSection > div.node_modules-\\@maccabi-m-ui-src-components-Main-MainContent-module__wrap___tP2I2.src-containers-App-App__wrapInner___g2xxf > div.src-containers-App-App__inner___ONNf1 > div.src-components-Loader-Loader__loaderWrapper___dp2wV > div")))
 			# Get fresh list of items
 			items = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR,
 				'div.TimeLineItem-module__item___D5ZMV')))
