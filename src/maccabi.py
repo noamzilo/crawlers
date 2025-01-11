@@ -144,36 +144,54 @@ def identify_item_type(item):
 	button_document = item.find_elements(By.ID, "ButtonDocument")
 	return "pdf_visible_in_list_view" if button_document else "lab_result_clickable"
 
-def download_all_pdfs(driver, wait, items, download_dir):
+def download_single_pdf(driver, wait, item, download_dir, idx):
+	"""Handle downloading a single PDF item"""
+	download_name = f"{idx}.pdf"
+	item_type = identify_item_type(item)
+	
+	if item_type == "pdf_visible_in_list_view":
+		full_path = download_pdf_from_list_view(driver, wait, item, download_dir, download_name)
+	else:  # lab_result_clickable
+		full_path = download_pdf_from_lab_result(driver, wait, item, download_dir, download_name)
+	
+	return full_path
+
+def download_all_pdfs(driver, wait, download_dir):
 	"""Download PDFs for all items in the list"""
 	downloaded = []
+	current_idx = 0
 	
-	for idx, item in enumerate(items):
+	while True:
 		try:
-			# Create download name
-			download_name = f"{idx}.pdf"
+			# Get fresh list of items
+			items = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR,
+				'div.TimeLineItem-module__item___D5ZMV')))
 			
-			# Identify item type and handle accordingly
-			item_type = identify_item_type(item)
+			# Check if we've processed all items
+			if current_idx >= len(items):
+				break
+				
+			# Get current item
+			item = items[current_idx]
+			
 			try:
-				if item_type == "pdf_visible_in_list_view":
-					full_path = download_pdf_from_list_view(driver, wait, item, download_dir, download_name)
-				else:  # lab_result_clickable
-					full_path = download_pdf_from_lab_result(driver, wait, item, download_dir, download_name)
-			except TimeoutError as ex:
-				print(f"Failed on item #{idx} due to timeout: {ex}")
+				full_path = download_single_pdf(driver, wait, item, download_dir, current_idx)
 				downloaded.append({
-					"name_of_item": download_name,
+					"full_path_to_item": full_path
+				})
+			except TimeoutError as ex:
+				print(f"Failed on item #{current_idx} due to timeout: {ex}")
+				downloaded.append({
+					"name_of_item": f"{current_idx}.pdf",
 					"full_path_to_item": None,
-				})	
-				continue
+				})
 			
-			downloaded.append({
-				"full_path_to_item": full_path
-			})
+			# Move to next item
+			current_idx += 1
 			
 		except Exception as e:
-			print(f"Failed on item #{idx}: {e}")
+			print(f"Failed on item #{current_idx}: {e}")
+			current_idx += 1
 			continue
 	
 	return downloaded
@@ -232,14 +250,14 @@ def main():
 		)
 		link_to_click.click()
 
-		# PHASE 3: Load All Available Items
-		print("Loading all items...")
-		all_items = load_all_items(driver, wait, fast=False)
-		print(f"Found {len(all_items)} items")
+		# PHASE 3: Load All Available Items - no need because it happens in the download function
+		# print("Loading all items...")
+		# all_items = load_all_items(driver, wait, fast=False)
+		# print(f"Found {len(all_items)} items")
 
 		# PHASE 4: Download All PDFs
 		print("Starting downloads...")
-		downloaded = download_all_pdfs(driver, wait, all_items, download_dir)
+		downloaded = download_all_pdfs(driver, wait, download_dir)
 		print(f"Successfully downloaded {len(downloaded)} files")
 
 		# PHASE 5: Save Results
