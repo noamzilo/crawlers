@@ -123,12 +123,20 @@ def download_pdf_from_lab_result(driver, wait, item, download_dir, download_name
 	
 	# Wait and click the save button (שמירה) using JavaScript
 	wait.until(EC.invisibility_of_element_located((By.CSS_SELECTOR, "#mainSection > div.node_modules-\\@maccabi-m-ui-src-components-Main-MainContent-module__wrap___tP2I2.src-containers-App-App__wrapInner___g2xxf > div.src-containers-App-App__inner___ONNf1 > div.src-components-Loader-Loader__loaderWrapper___dp2wV > div")))
-	time.sleep(3)
+	wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#mainSection > div.node_modules-\\@maccabi-m-ui-src-components-Main-MainContent-module__wrap___tP2I2.src-containers-App-App__wrapInner___g2xxf > div.src-containers-App-App__inner___ONNf1 > div:nth-child(1) > div.MainBody-module__wrap___ZGWaQ.MainBody-module__layout-spread___eCdRv.MainBody-module__quickAction___zkoXs.LabResult__labResultsMainBody___sac4U > div > div")))
+	wait.until( EC.presence_of_element_located((By.CSS_SELECTOR, "#myCheck")))
 	save_button = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 
 		"div.MainHeadline-module__wrap___LPzAO.LabResult__headerT___B1pfk.d-flex > ul > li:nth-child(1) > button"
 	)))
 	driver.execute_script("arguments[0].click();", save_button)
 	time.sleep(3)
+
+	# Check for "can't be found" error message
+	error_elements = driver.find_elements(By.CSS_SELECTOR, "#main-message > h1 > span")
+	for element in error_elements:
+		if "can't be found" in element.text:
+			raise MaccabiFileNotFound("file can't be found on maccabi")
+
 	# Monitor for new file
 	downloaded_file = monitor_new_file(download_dir, initial_files)
 	target_path = os.path.join(download_dir, download_name)
@@ -148,6 +156,10 @@ def identify_item_type(item):
 	"""Identify if the item has a direct PDF button or is a clickable lab result"""
 	button_document = item.find_elements(By.ID, "ButtonDocument")
 	return "pdf_visible_in_list_view" if button_document else "lab_result_clickable"
+
+class MaccabiFileNotFound(Exception):
+	"""Raised when a file cannot be found on Maccabi's servers"""
+	pass
 
 def download_single_pdf(driver, wait, item, download_dir, idx):
 	"""Handle downloading a single PDF item"""
@@ -182,6 +194,12 @@ def download_all_pdfs(driver, wait, download_dir):
 				full_path = download_single_pdf(driver, wait, item, download_dir, current_idx)
 				downloaded.append({
 					"full_path_to_item": full_path
+				})
+			except MaccabiFileNotFound as ex:
+				print(f"Failed on item #{current_idx} due to file not found: {ex}")
+				downloaded.append({
+					"name_of_item": f"{current_idx}.pdf",
+					"full_path_to_item": None,
 				})
 			except TimeoutError as ex:
 				print(f"Failed on item #{current_idx} due to timeout: {ex}")
