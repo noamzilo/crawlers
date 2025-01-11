@@ -129,12 +129,11 @@ def download_pdf_from_lab_result(driver, wait, item, download_dir, download_name
 		"div.MainHeadline-module__wrap___LPzAO.LabResult__headerT___B1pfk.d-flex > ul > li:nth-child(1) > button"
 	)))
 	driver.execute_script("arguments[0].click();", save_button)
-	time.sleep(3)
 
 	# Check for "can't be found" error message
-	error_elements = driver.find_elements(By.CSS_SELECTOR, "#main-message > h1 > span")
-	for element in error_elements:
-		if "can't be found" in element.text:
+	error_elements_body = driver.find_elements(By.CSS_SELECTOR, "body")
+	for element in error_elements_body:
+		if "This online.maccabi4u.co.il page can’t be found" in element.text:
 			raise MaccabiFileNotFound("file can't be found on maccabi")
 
 	# Monitor for new file
@@ -175,7 +174,7 @@ def download_single_pdf(driver, wait, item, download_dir, idx):
 def download_all_pdfs(driver, wait, download_dir):
 	"""Download PDFs for all items in the list"""
 	downloaded = []
-	current_idx = 0
+	current_idx = 7
 	
 	while True:
 		try:
@@ -201,6 +200,11 @@ def download_all_pdfs(driver, wait, download_dir):
 					"name_of_item": f"{current_idx}.pdf",
 					"full_path_to_item": None,
 				})
+				driver.back()
+				time.sleep(1)
+				driver.back()
+				time.sleep(1)
+				
 			except TimeoutError as ex:
 				print(f"Failed on item #{current_idx} due to timeout: {ex}")
 				downloaded.append({
