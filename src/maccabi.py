@@ -66,7 +66,7 @@ def scroll_to_element(driver, element):
 	# Add small delay after scroll
 	time.sleep(0.5)
 
-def load_all_items(driver, wait, fast=True):
+def load_all_items(driver, wait, fast=False):
 	"""Scroll until all items are loaded and return the complete list"""
 	last_item_count = 0
 	
@@ -172,20 +172,30 @@ def download_single_pdf(driver, wait, item, download_dir, idx):
 	return full_path
 
 def download_all_pdfs(driver, wait, download_dir):
-	"""Download PDFs for all items in the list"""
+	"""Download PDFs for all items in the list, scrolling to load more as needed"""
 	downloaded = []
-	current_idx = 7
+	current_idx = 0
+	last_item_count = 0
 	
 	while True:
 		try:
-			print(f"Downloading item #{current_idx}")
 			# Get fresh list of items
 			items = wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR,
 				'div.TimeLineItem-module__item___D5ZMV')))
-			# Check if we've processed all items
+			
+			# If we've processed all currently visible items, try to load more
 			if current_idx >= len(items):
-				break
+				# If no new items were loaded after last scroll, we're done
+				if len(items) == last_item_count:
+					break
 				
+				# Update count and scroll to last item
+				last_item_count = len(items)
+				scroll_to_element(driver, items[-1])
+				time.sleep(1)  # Wait for potential new items to load
+				continue
+			
+			print(f"Downloading item #{current_idx}")
 			# Get current item
 			item = items[current_idx]
 			
