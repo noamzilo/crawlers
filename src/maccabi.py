@@ -66,7 +66,7 @@ def scroll_to_element(driver, element):
 	# Add small delay after scroll
 	time.sleep(0.5)
 
-def load_all_items(driver, wait, fast=False):
+def load_all_items(driver, wait, fast=True):
 	"""Scroll until all items are loaded and return the complete list"""
 	last_item_count = 0
 	
@@ -116,7 +116,7 @@ def download_pdf_from_lab_result(driver, wait, item, download_dir, download_name
 	initial_files = set(f for f in os.listdir(download_dir) if f.endswith(".pdf"))
 	
 	# Click the item to open the detailed view using JavaScript
-	item.click()
+	driver.execute_script("arguments[0].click();", item)
 	
 	# Wait and click the save button (שמירה) using JavaScript
 	save_button = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 
@@ -169,7 +169,6 @@ def download_all_pdfs(driver, wait, items, download_dir):
 				continue
 			
 			downloaded.append({
-				"name_of_item": os.path.basename(full_path),
 				"full_path_to_item": full_path
 			})
 			
@@ -234,10 +233,8 @@ def main():
 		link_to_click.click()
 
 		# PHASE 3: Load All Available Items
-		is_speedup = True
-	
 		print("Loading all items...")
-		all_items = load_all_items(driver, wait, fast=is_speedup)
+		all_items = load_all_items(driver, wait, fast=False)
 		print(f"Found {len(all_items)} items")
 
 		# PHASE 4: Download All PDFs
