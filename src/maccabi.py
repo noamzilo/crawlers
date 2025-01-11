@@ -213,7 +213,8 @@ def main():
 	prefs = {
 		"download.default_directory": download_dir,
 		"download.prompt_for_download": False,
-		"plugins.always_open_pdf_externally": True
+		"plugins.always_open_pdf_externally": True,
+		"profile.default_content_setting_values.automatic_downloads": 1  # Allow multiple downloads
 	}
 	options.add_experimental_option("prefs", prefs)
 	driver = webdriver.Chrome(options=options)
